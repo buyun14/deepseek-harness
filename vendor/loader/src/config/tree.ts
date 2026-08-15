@@ -1,5 +1,7 @@
 import { composeError, Context } from '@deepseek-ai/cordis'
 import { isNonNullable, type Dict } from '@deepseek-ai/cosmokit'
+import { isAbsolute } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { Entry, type EntryOptions } from './entry.ts'
 import { EntryGroup } from './group.ts'
 
@@ -145,6 +147,12 @@ export abstract class EntryTree {
   import(name: string, getOuterStack?: () => string[]) {
     if (name.startsWith('cordis:')) {
       return this.ctx.loader.builtins[name.slice(7)]
+    }
+    // Absolute filesystem paths are not valid ESM specifiers: on Windows the
+    // drive letter (`E:\...`) is parsed as a URL scheme and the default loader
+    // rejects it with ERR_UNSUPPORTED_ESM_URL_SCHEME. Normalize to file://.
+    if (isAbsolute(name)) {
+      name = pathToFileURL(name).href
     }
     return composeError(async (info) => {
       // ModuleJob.run
